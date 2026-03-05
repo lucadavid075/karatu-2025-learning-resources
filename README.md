@@ -1,0 +1,1 @@
+# karatu-2025-learning-resources
