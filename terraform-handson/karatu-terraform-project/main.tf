@@ -1,29 +1,50 @@
 terraform {
-    required_version = ">= 1.14.7"
-    required_providers {
-        aws = {
-            source  = "hashicorp/aws"
-            version = "6.37.0"
-        }
+  required_version = ">= 1.14.7"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.37.0"
     }
+  }
 }
 
 provider "aws" {
-    region = "us-east-2"
+  region = "us-east-2"
+}
+
+locals {
+  ami_id = "ami-0b0b78dcacbab728f"
 }
 
 
 variable "instance_type" {
-    type = string
-    description = "The type of instance to create"
-    default = "t3.medium"
+  type        = string
+  description = "The type of instance to create"
+  default     = "t3.micro"
+}
+
+variable "ssh_private_key" {
+  type = string
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 
-
 resource "aws_instance" "web_server" {
-  ami           = "ami-0b0b78dcacbab728f"
+  ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
+  # key_name      = var.ssh_private_key
 
   user_data = <<-EOF
               #!/bin/bash
@@ -41,7 +62,7 @@ resource "aws_instance" "web_server" {
 }
 
 resource "aws_instance" "web_server2" {
-  ami           = "ami-0b0b78dcacbab728f"
+  ami           = local.ami_id
   instance_type = var.instance_type
 
   user_data = <<-EOF
@@ -58,3 +79,32 @@ resource "aws_instance" "web_server2" {
     Type = "WebServer"
   }
 }
+
+
+output "web_server_public_ip" {
+  value = aws_instance.web_server.public_ip
+}
+
+output "web_server2_public_ip" {
+  value = aws_instance.web_server2.public_ip
+}
+
+output "web_servers" {
+  value = [aws_instance.web_server.public_ip, aws_instance.web_server2.public_ip]
+}
+
+output "ami_id" {
+  value = data.aws_ami.amazon_linux.id
+}
+
+
+
+
+
+
+# cli-variable -> tfvars-file -> environement-variable -> tfvars-default -> default-value -> prompt-for-input
+
+# cli-variable: terraform plan -var="instance_type=t3.micro"
+# tfvars-file: terraform plan"
+# custom tfvars file: terraform plan -var-file="custom.tfvars"
+# environment variable: export TF_VAR_instance_type=t3.micro
